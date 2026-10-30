@@ -45,7 +45,7 @@ Then:
 make run      # build and play
 make          # just build ./pacman
 make test     # run the automated test
-make clean    # remove the binaries
+make clean    # remove the binaries and the web build
 ```
 
 `./run.sh` does the same as `make run`.
@@ -54,14 +54,34 @@ The game loads `font.ttf` from the folder it runs in. The high score is saved in
 
 ## Play in a browser
 
-The same C code compiles to WebAssembly with [Emscripten](https://emscripten.org) (`brew install emscripten`):
+Play it online at **https://gubatron.com/pacman-c/**.
+
+The same C code compiles to WebAssembly with [Emscripten](https://emscripten.org). Install it first:
+
+```sh
+brew install emscripten       # macOS
+```
+
+On Linux, install the [emsdk](https://emscripten.org/docs/getting_started/downloads.html) and run `source ./emsdk_env.sh` so `emcc` is on your `PATH`. Emscripten downloads and compiles its own SDL2 and SDL2_ttf the first time you build, so that build takes a few minutes.
+
+Then:
 
 ```sh
 make web      # builds build/web/: index.html, index.js, index.wasm, index.data
 make serve    # builds it and serves it at http://localhost:8000
 ```
 
-To put it on a website, upload the four files in `build/web/` to a folder on the server, for example `https://example.com/pacman-c/`. Browsers only play sound after the visitor clicks or presses a key, so the page starts the game on the first one. In the browser the high score is kept in the site's `localStorage`. The page itself is [`web/shell.html`](web/shell.html).
+Open the page through a web server like `make serve`, not by double-clicking `index.html`: browsers won't load the `.wasm` and `.data` files from a `file://` page.
+
+To put it on a website, upload the four files in `build/web/` to a folder on the server, for example:
+
+```sh
+scp build/web/index.* user@example.com:/var/www/example.com/pacman-c/
+```
+
+Then open `https://example.com/pacman-c/`. Nothing runs on the server; any static web server works, as long as it sends `.wasm` files as `application/wasm` (nginx, Apache and Caddy do by default).
+
+Browsers only play sound after the visitor clicks or presses a key, so the page starts the game on the first one. In the browser the high score is kept in the site's `localStorage`. The page itself is [`web/shell.html`](web/shell.html).
 
 ## Headless test
 
