@@ -3,3 +3,4 @@ pacman-test
 *.bmp
 *~
 .DS_Store
+build/
