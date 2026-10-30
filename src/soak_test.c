@@ -51,6 +51,11 @@ static bool check_invariants(int frame) {
             return false;
         }
     }
+    if (player_speed() > player_max_speed() + 0.001f) {
+        printf("FAIL frame %d: Pac-Man's speed %.3f is over the maximum %.3f\n", frame, player_speed(),
+               player_max_speed());
+        return false;
+    }
     if (game.dots_left < 0) {
         printf("FAIL frame %d: dots_left went negative\n", frame);
         return false;
