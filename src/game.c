@@ -77,6 +77,7 @@ void game_new(void) {
     game.lives = START_LIVES;
     game.level = 1;
     game.extra_life_awarded = false;
+    game.speed_pellets = 0;
     game.paused = false;
     sound_set_paused(false);
     reset_maze();
@@ -94,6 +95,7 @@ static void next_level(void) {
 
 static void after_death(void) {
     game.lives--;
+    game.speed_pellets = 0; // dying costs Pac-Man the speed he built up
     if (game.lives <= 0) {
         game.state = STATE_GAME_OVER;
         highscore_save(game.high_score);
@@ -112,6 +114,7 @@ void game_pellet_eaten(int points) {
     game.dots_left--;
     game.dots_eaten_level++;
     game.dots_eaten_life++;
+    game.speed_pellets++;
     game.no_dot_timer = 0;
     if (game.dots_eaten_level == 70 || game.dots_eaten_level == 170) {
         game.fruit_timer = FPS * 19 / 2; // fruit appears twice per level, for 9.5 seconds
