@@ -2,7 +2,7 @@
 <!--
   The page that hosts the WebAssembly build. `make web` fills in {{{ SCRIPT }}} with the
   script that loads the game. The game draws into the <canvas>, and SDL listens for the
-  keyboard on the whole page.
+  keyboard on the whole page and for touches on the canvas (swipes steer, see main.c).
 -->
 <html lang="en">
 <head>
@@ -13,14 +13,19 @@
   :root { color-scheme: dark; }
   html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 15px/1.4 system-ui, sans-serif; }
   body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px 16px; box-sizing: border-box; }
-  #stage { position: relative; }
-  /* Scale the 672x840 game to fit the window, keeping its shape. SDL sets the canvas
-     size itself, so !important is needed to override it. */
+  /* touch-action: none stops the browser from scrolling or zooming the page while a
+     finger swipes on the game */
+  #stage { position: relative; touch-action: none; }
+  /* Scale the 672x840 game to fit the window, keeping its shape: as wide as the window
+     allows, but no taller than the window (840/672 = 1.25), and never above its real
+     size. SDL sets the canvas size itself, so !important is needed to override it. */
   canvas {
     display: block;
-    height: min(calc(100vh - 80px), 840px) !important;
-    width: auto !important;
-    max-width: calc(100vw - 32px);
+    width: min(calc(100vw - 32px), calc((100vh - 110px) / 1.25), 672px) !important;
+    /* dvh is the height actually visible on a phone, between its address and tool bars;
+       browsers that don't know it keep the line above */
+    width: min(calc(100vw - 32px), calc((100dvh - 110px) / 1.25), 672px) !important;
+    height: auto !important;
     aspect-ratio: 672 / 840;
     background: #000;
     outline: none;
@@ -33,6 +38,19 @@
   #start .go { color: #fff; font-size: 18px; }
   #status { color: #888; }
   .keys { color: #888; text-align: center; }
+  .touch { display: none; }
+  #buttons { gap: 12px; }
+  #buttons button {
+    font: inherit; color: #ddd; background: #222; border: 1px solid #555; border-radius: 8px;
+    padding: 8px 22px; touch-action: manipulation;
+  }
+  /* On phones and tablets (a finger is a "coarse pointer"), show the touch controls
+     instead of the keyboard ones */
+  @media (pointer: coarse) {
+    span.touch { display: inline; }
+    #buttons.touch { display: flex; }
+    .no-touch { display: none; }
+  }
   kbd { border: 1px solid #555; border-radius: 4px; padding: 0 5px; color: #ccc; }
   a { color: #8af; }
 </style>
@@ -45,9 +63,15 @@
       <div class="go" id="status">Loading…</div>
     </div>
   </div>
+  <div id="buttons" class="touch">
+    <button id="pause">Pause</button>
+    <button id="mute">Mute</button>
+  </div>
   <div class="keys">
-    <kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd> or <kbd>WASD</kbd> move · <kbd>P</kbd> pause · <kbd>M</kbd> mute ·
-    <kbd>Enter</kbd> play again · written in C, compiled to WebAssembly ·
+    <span class="no-touch"><kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd> or <kbd>WASD</kbd> move · <kbd>P</kbd> pause · <kbd>M</kbd> mute ·
+    <kbd>Enter</kbd> play again ·</span>
+    <span class="touch">Swipe to move · tap to play again ·</span>
+    written in C, compiled to WebAssembly ·
     <a href="https://github.com/gubatron/pacman-c">source</a>
   </div>
 <script>
@@ -72,12 +96,20 @@
     printErr: function (text) { console.warn(text); },
     onRuntimeInitialized: function () {
       ready = true;
-      statusText.textContent = "Click or press any key to play";
+      statusText.textContent = window.matchMedia("(pointer: coarse)").matches
+        ? "Tap to play" : "Click or press any key to play";
       statusText.className = "go";
     },
   };
 
   start.addEventListener("click", play);
+  // The buttons for touch screens call C functions that main.c exports for them
+  document.getElementById("pause").addEventListener("click", function () {
+    if (started) Module._web_toggle_pause();
+  });
+  document.getElementById("mute").addEventListener("click", function () {
+    if (started) Module._web_toggle_mute();
+  });
   window.addEventListener("keydown", function (event) {
     if (!started) play(event);
   });
