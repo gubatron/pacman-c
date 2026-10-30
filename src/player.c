@@ -12,11 +12,20 @@
 
 #define MOUTH_SPEED 8.0f // degrees per frame the mouth opens or closes
 
-// Each pellet eaten in a level adds this fraction of BASE_SPEED, so by the last of the
-// 244 pellets Pac-Man runs about 24% faster. The bonus lasts through lost lives and
-// starts over with the next level. This is our own twist: the arcade has no such rule.
+// Our own twist on the arcade, which has no such rules: eating makes Pac-Man faster in
+// two ways, both measured as fractions of BASE_SPEED.
+//
+// A lasting bonus: every pellet adds SPEED_PER_PELLET, up to MAX_PELLET_BONUS. It carries
+// over to the next levels and is lost when Pac-Man dies. 0.1% per pellet means about
+// +24% per level's 244 pellets, so the +50% cap is reached early in the third level.
 #define SPEED_PER_PELLET 0.001f
-#define LEVEL_PELLETS    244
+#define MAX_PELLET_BONUS 0.50f
+//
+// A burst: every pellet gives PELLET_BURST extra speed that fades back to nothing over
+// BURST_FRAMES. Pellets come every 6 to 8 frames in a full corridor, so steady eating
+// keeps the burst up, and an empty corridor lets it settle back.
+#define PELLET_BURST 0.15f
+#define BURST_FRAMES 30 // half a second
 
 // Speeds as fractions of BASE_SPEED, for each speed tier (see game_speed_tier()).
 // Pac-Man is faster while the ghosts are frightened.
@@ -30,6 +39,7 @@ void player_reset(void) {
     p->dir = DIR_LEFT;
     p->next_dir = DIR_NONE;
     p->speed_acc = 0.0f;
+    p->burst = 0.0f;
     p->moving = false;
     p->mouth_angle = 30.0f;
     p->mouth_opening = false;
@@ -38,6 +48,9 @@ void player_reset(void) {
 // Eats the pellet on the tile Pac-Man is on, if there is one.
 static void eat(void) {
     Cell eaten = maze_eat(tile_col(game.pac.x), tile_row(game.pac.y));
+    if (eaten == CELL_PELLET || eaten == CELL_POWER_PELLET) {
+        game.pac.burst = PELLET_BURST; // back to a full burst, not added on top
+    }
     if (eaten == CELL_PELLET) {
         game_pellet_eaten(10);
     } else if (eaten == CELL_POWER_PELLET) {
@@ -96,15 +109,25 @@ static void animate_mouth(void) {
 float player_speed(void) {
     int tier = game_speed_tier();
     float pct = game.fright_timer > 0 ? FRIGHT_SPEED[tier] : NORMAL_SPEED[tier];
-    return BASE_SPEED * (pct + SPEED_PER_PELLET * (float)game.dots_eaten_level);
+    float bonus = SPEED_PER_PELLET * (float)game.speed_pellets;
+    if (bonus > MAX_PELLET_BONUS) {
+        bonus = MAX_PELLET_BONUS;
+    }
+    return BASE_SPEED * (pct + bonus + game.pac.burst);
 }
 
 float player_max_speed(void) {
-    // Top tier, with every pellet of a level eaten
-    return BASE_SPEED * (1.00f + SPEED_PER_PELLET * LEVEL_PELLETS);
+    // Top tier, with the whole lasting bonus and a fresh burst
+    return BASE_SPEED * (1.00f + MAX_PELLET_BONUS + PELLET_BURST);
 }
 
 void player_update(void) {
+    // The burst fades evenly, reaching 0 BURST_FRAMES after the last pellet
+    game.pac.burst -= PELLET_BURST / BURST_FRAMES;
+    if (game.pac.burst < 0.0f) {
+        game.pac.burst = 0.0f;
+    }
+
     int steps = take_steps(&game.pac.speed_acc, player_speed());
     for (int i = 0; i < steps; i++) {
         if (!step()) {
