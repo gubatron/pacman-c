@@ -23,4 +23,10 @@ void player_reset(void);
 // Moves Pac-Man for one frame, eating whatever he passes over.
 void player_update(void);
 
+// Pac-Man's speed right now, in pixels per frame. Divide by BASE_SPEED for a percentage.
+float player_speed(void);
+
+// The fastest Pac-Man can go, for scaling the speed gauge.
+float player_max_speed(void);
+
 #endif
