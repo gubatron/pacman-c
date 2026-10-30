@@ -44,6 +44,7 @@ typedef struct {
     int dots_eaten_level; // pellets eaten this level: brings out the fruit
     int dots_eaten_life;  // pellets eaten since the last death: releases ghosts
     int no_dot_timer;     // frames since the last pellet: also releases ghosts
+    int speed_pellets;    // pellets eaten since the last death, across levels: speeds Pac-Man up
 
     int mode_index, mode_timer; // where we are in the scatter/chase schedule (ghosts.c)
     bool chase;                 // true in chase mode, false in scatter mode
