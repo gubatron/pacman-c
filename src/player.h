@@ -7,6 +7,9 @@
 
 #include "maze.h"
 
+// How many of Pac-Man's past positions are remembered for his speed trail, one per frame.
+#define TRAIL_LENGTH 12
+
 typedef struct {
     int x, y;     // center, in maze pixels
     Dir dir;      // the way he is going (or facing, while stopped against a wall)
@@ -16,6 +19,9 @@ typedef struct {
     bool moving;     // false while stopped against a wall
     float mouth_angle;  // how wide the mouth is open, in degrees
     bool mouth_opening; // whether the mouth is opening or closing
+    struct {
+        int x, y;
+    } trail[TRAIL_LENGTH]; // where he was: trail[0] last frame, trail[1] the frame before, ...
 } Pacman;
 
 // Puts Pac-Man back at his starting spot, facing left.
@@ -29,5 +35,9 @@ float player_speed(void);
 
 // The fastest Pac-Man can go, for scaling the speed gauge.
 float player_max_speed(void);
+
+// How strongly to draw the speed trail: 0 below the speed where it starts, rising to 1
+// as he goes faster.
+float player_trail_strength(void);
 
 #endif
