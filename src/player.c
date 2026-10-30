@@ -12,6 +12,17 @@
 
 #define MOUTH_SPEED 8.0f // degrees per frame the mouth opens or closes
 
+// Each pellet eaten in a level adds this fraction of BASE_SPEED, so by the last of the
+// 244 pellets Pac-Man runs about 24% faster. The bonus lasts through lost lives and
+// starts over with the next level. This is our own twist: the arcade has no such rule.
+#define SPEED_PER_PELLET 0.001f
+#define LEVEL_PELLETS    244
+
+// Speeds as fractions of BASE_SPEED, for each speed tier (see game_speed_tier()).
+// Pac-Man is faster while the ghosts are frightened.
+static const float NORMAL_SPEED[] = { 0.80f, 0.90f, 1.00f };
+static const float FRIGHT_SPEED[] = { 0.90f, 0.95f, 1.00f };
+
 void player_reset(void) {
     Pacman *p = &game.pac;
     p->x = 14 * TILE; // between columns 13 and 14, like the arcade
@@ -82,14 +93,19 @@ static void animate_mouth(void) {
     }
 }
 
-void player_update(void) {
-    // Speeds as fractions of BASE_SPEED, for each speed tier (see game_speed_tier()).
-    // Pac-Man is faster while the ghosts are frightened.
-    static const float NORMAL[] = { 0.80f, 0.90f, 1.00f };
-    static const float FRIGHT[] = { 0.90f, 0.95f, 1.00f };
-    float pct = game.fright_timer > 0 ? FRIGHT[game_speed_tier()] : NORMAL[game_speed_tier()];
+float player_speed(void) {
+    int tier = game_speed_tier();
+    float pct = game.fright_timer > 0 ? FRIGHT_SPEED[tier] : NORMAL_SPEED[tier];
+    return BASE_SPEED * (pct + SPEED_PER_PELLET * (float)game.dots_eaten_level);
+}
 
-    int steps = take_steps(&game.pac.speed_acc, BASE_SPEED * pct);
+float player_max_speed(void) {
+    // Top tier, with every pellet of a level eaten
+    return BASE_SPEED * (1.00f + SPEED_PER_PELLET * LEVEL_PELLETS);
+}
+
+void player_update(void) {
+    int steps = take_steps(&game.pac.speed_acc, player_speed());
     for (int i = 0; i < steps; i++) {
         if (!step()) {
             break;
