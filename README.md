@@ -10,7 +10,7 @@ Pac-Man in C with SDL2.
 - Four ghosts with their arcade personalities: Blinky chases you, Pinky ambushes ahead of you, Inky flanks with Blinky and Clyde loses interest up close
 - Scatter and chase waves, frightened ghosts after a power pellet, and eyes that run back to the ghost house
 - Fruit, an extra life at 10,000 points, levels that speed up, and a saved high score
-- Pac-Man gets a little faster with every pellet he eats in a level, shown on a speed gauge at the bottom (our own twist on the arcade)
+- Our own twist on the arcade: every pellet makes Pac-Man a little faster for good (up to +50%, kept across levels, lost when he dies) and gives him a short burst of speed that fades in half a second. A speed gauge at the bottom shows it
 - Arcade-style sound synthesized in code, with no audio files: intro jingle, waka-waka, siren, ghost and death sounds
 
 ## Controls
