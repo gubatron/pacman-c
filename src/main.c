@@ -23,6 +23,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h> // only when building for the web with `make web`
+#endif
 
 #include "game.h"
 #include "highscore.h"
@@ -73,51 +76,66 @@ static void handle_keydown(SDL_Scancode key, bool *quit) {
     }
 }
 
-// The main loop, with a fixed time step.
+// One pass of the main loop, with a fixed time step. Returns false when it's time to quit.
 //
 // The display may refresh 60, 120 or 144 times per second, but the game logic must run
 // exactly 60 times per second on every computer, or Pac-Man would be faster on some.
-// So we keep the two apart: each time around the loop we measure how much real time has
-// passed, add it to an "accumulator", and run one logic step (game_update) for every
-// 1/60 of a second in it. Whatever is left over waits for the next time around. Then we
-// draw once. On a 120 Hz display that means one logic step every other frame; on a slow
-// computer it can mean two steps before a draw.
-static void run(void) {
+// So we keep the two apart: each pass we measure how much real time has passed, add it
+// to an "accumulator", and run one logic step (game_update) for every 1/60 of a second
+// in it. Whatever is left over waits for the next pass. Then we draw once. On a 120 Hz
+// display that means one logic step every other pass; on a slow computer it can mean
+// two steps before a draw.
+//
+// The loop is written as a function that does one pass, rather than as a while loop,
+// because a web browser won't let a page loop forever: there, the browser calls this
+// function once per screen refresh instead (see main below).
+static bool loop_once(void) {
     const double step = 1.0 / FPS;
-    double accumulator = 0.0;
-    // A high-resolution clock: counter ticks, and how many ticks make a second
-    Uint64 freq = SDL_GetPerformanceFrequency();
-    Uint64 previous = SDL_GetPerformanceCounter();
+    // C lesson: `static` local variables keep their values between calls, so the
+    // accumulator and the clock survive from one pass to the next. They are set up the
+    // first time the function runs.
+    static double accumulator = 0.0;
+    static Uint64 freq = 0, previous = 0; // a high-resolution clock and its ticks per second
+    if (freq == 0) {
+        freq = SDL_GetPerformanceFrequency();
+        previous = SDL_GetPerformanceCounter();
+    }
+
+    // Handle every event that came in since the last pass
     bool quit = false;
     SDL_Event e;
-
-    while (!quit) {
-        // Handle every event that came in since the last time around
-        while (SDL_PollEvent(&e) != 0) {
-            if (e.type == SDL_QUIT) { // the window's close button
-                quit = true;
-            } else if (e.type == SDL_KEYDOWN && !e.key.repeat) { // ignore auto-repeat
-                handle_keydown(e.key.keysym.scancode, &quit);
-            }
+    while (SDL_PollEvent(&e) != 0) {
+        if (e.type == SDL_QUIT) { // the window's close button
+            quit = true;
+        } else if (e.type == SDL_KEYDOWN && !e.key.repeat) { // ignore auto-repeat
+            handle_keydown(e.key.keysym.scancode, &quit);
         }
-
-        Uint64 now = SDL_GetPerformanceCounter();
-        accumulator += (double)(now - previous) / (double)freq;
-        previous = now;
-        if (accumulator > 0.25) {
-            // After a long stall (the window was dragged, the computer slept) don't try
-            // to catch up on seconds of game time at once; just carry on
-            accumulator = 0.25;
-        }
-        while (accumulator >= step) {
-            game_update();
-            accumulator -= step;
-        }
-
-        render_frame(); // waits for the display's refresh (VSYNC), which paces the loop
-        SDL_Delay(1);   // and in case VSYNC is off, don't spin the CPU at 100%
     }
+
+    Uint64 now = SDL_GetPerformanceCounter();
+    accumulator += (double)(now - previous) / (double)freq;
+    previous = now;
+    if (accumulator > 0.25) {
+        // After a long stall (the window was dragged, the computer slept, the browser tab
+        // was hidden) don't try to catch up on seconds of game time at once; just carry on
+        accumulator = 0.25;
+    }
+    while (accumulator >= step) {
+        game_update();
+        accumulator -= step;
+    }
+
+    render_frame();
+    return !quit;
 }
+
+#ifdef __EMSCRIPTEN__
+// The browser calls this once per screen refresh. There's nothing to quit to on a web
+// page, so Esc does nothing there.
+static void browser_frame(void) {
+    loop_once();
+}
+#endif
 
 int main(int argc, char *argv[]) {
     // SDL requires main to take these, even though we don't use them
@@ -151,7 +169,18 @@ int main(int argc, char *argv[]) {
 
     game.high_score = highscore_load();
     game_new();
-    run();
+
+#ifdef __EMSCRIPTEN__
+    // Hand the loop to the browser: 0 means "at the display's refresh rate", and true
+    // means this call never returns, so the code below is only for the desktop
+    emscripten_set_main_loop(browser_frame, 0, true);
+#else
+    while (loop_once()) {
+        // render_frame() waits for the display's refresh (VSYNC), which paces the loop;
+        // in case VSYNC is off, don't spin the CPU at 100%
+        SDL_Delay(1);
+    }
+#endif
 
     highscore_save(game.high_score);
     sound_quit();
