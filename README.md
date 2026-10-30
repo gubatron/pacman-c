@@ -52,6 +52,17 @@ make clean    # remove the binaries
 
 The game loads `font.ttf` from the folder it runs in. The high score is saved in SDL's per-user preferences folder (on macOS, `~/Library/Application Support/gubatron/pacman-c/highscore.txt`).
 
+## Play in a browser
+
+The same C code compiles to WebAssembly with [Emscripten](https://emscripten.org) (`brew install emscripten`):
+
+```sh
+make web      # builds build/web/: index.html, index.js, index.wasm, index.data
+make serve    # builds it and serves it at http://localhost:8000
+```
+
+To put it on a website, upload the four files in `build/web/` to a folder on the server, for example `https://example.com/pacman-c/`. Browsers only play sound after the visitor clicks or presses a key, so the page starts the game on the first one. In the browser the high score is kept in the site's `localStorage`. The page itself is [`web/shell.html`](web/shell.html).
+
 ## Headless test
 
 `make test` builds a test version of the game and lets a bot play 200,000 frames (about 55 minutes of play) without a window or sound. After every frame it checks things that must always be true, such as nobody standing inside a wall, and every 5000 frames it clears the board to exercise the level transitions. It prints `OK ...` or the first problem it found.
