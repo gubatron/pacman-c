@@ -23,6 +23,8 @@ Pac-Man in C with SDL2.
 | Enter or Space | Play again after game over |
 | Esc | Quit |
 
+On a phone or tablet, in the browser version: swipe to move (keep your finger down and slide again to make the next turn), tap to play again, and use the Pause and Mute buttons under the game.
+
 ## Build and play
 
 You need a C compiler, SDL2 and SDL2_ttf.
@@ -83,7 +85,7 @@ scp build/web/index.* user@example.com:/var/www/example.com/pacman-c/
 
 Then open `https://example.com/pacman-c/`. Nothing runs on the server; any static web server works, as long as it sends `.wasm` files as `application/wasm` (nginx, Apache and Caddy do by default).
 
-Browsers only play sound after the visitor clicks or presses a key, so the page starts the game on the first one. In the browser the high score is kept in the site's `localStorage`. The page itself is [`web/shell.html`](web/shell.html).
+Browsers only play sound after the visitor clicks or presses a key, so the page starts the game on the first one. In the browser the high score is kept in the site's `localStorage`. On touch screens the page shows Pause and Mute buttons and the hint "Swipe to move", and the game is sized to fit the phone's screen. The page itself is [`web/shell.html`](web/shell.html).
 
 ## Headless test
 
