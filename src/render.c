@@ -70,6 +70,9 @@ bool render_init(void) {
         printf("Renderer could not be created! SDL Error: %s\n", SDL_GetError());
         return false;
     }
+    // Let colors with an alpha below 255 be see-through, for the speed trail. Everything
+    // else is drawn fully opaque, so it looks the same either way.
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
     // Load the font from next to the executable, so the game works wherever it is
     // started from, and then from the current folder
@@ -182,6 +185,28 @@ static void draw_pacman(int cx, int cy, int radius, float mouth_angle, float fac
     }
     set_color(YELLOW);
     SDL_RenderDrawPoints(renderer, points, count);
+}
+
+// When Pac-Man is fast, faint copies of him trail behind: every other remembered
+// position, each smaller and fainter than the one before. Alpha is how opaque a color
+// is, from 0 (invisible) to 255 (solid); with blending on, a low alpha lets the maze
+// show through.
+static void draw_trail(void) {
+    float strength = player_trail_strength();
+    if (strength <= 0.0f) {
+        return;
+    }
+    for (int i = 1; i < TRAIL_LENGTH; i += 2) {
+        int x = game.pac.trail[i].x;
+        int y = game.pac.trail[i].y + HUD_HEIGHT;
+        // Skip points from the other side of the tunnel, so the trail doesn't jump across
+        if (abs(x - game.pac.x) > TRAIL_LENGTH * TILE / 2) {
+            continue;
+        }
+        float fade = 1.0f - (float)(i + 1) / (TRAIL_LENGTH + 1); // older points are fainter
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, (Uint8)(110.0f * fade * strength));
+        fill_circle(x, y, PLAYER_RADIUS - i / 2);
+    }
 }
 
 static void draw_ghost(const Ghost *g) {
@@ -428,6 +453,9 @@ void render_frame(void) {
 
     if (game.fruit_timer > 0) {
         draw_cherry(FRUIT_X, HUD_HEIGHT + FRUIT_Y);
+    }
+    if (game.state == STATE_PLAYING) {
+        draw_trail();
     }
 
     // When Pac-Man is caught everything freezes for half a second, then the ghosts
