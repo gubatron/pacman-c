@@ -2,6 +2,7 @@
 // Pac-Man in C with SDL2: the classic maze, pellets and power pellets, four ghosts
 // with their chase/scatter personalities, fruit, lives, levels, sound and a saved high score.
 // Controls: arrows or WASD to move, P to pause, M to mute, Enter to play again, Esc to quit.
+// On a touch screen: swipe to move, tap to play again.
 //
 // This file starts everything up, runs the main loop, and shuts everything down. A good
 // order to read the rest of the code in:
@@ -19,6 +20,7 @@
 // Each .h file is a module's public interface: what other files may use. The matching
 // .c file has the implementation, and anything marked `static` in it is private to it.
 #include <SDL2/SDL.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,6 +78,68 @@ static void handle_keydown(SDL_Scancode key, bool *quit) {
     }
 }
 
+// Swipes on a touch screen steer like the arrow keys. A finger only has to travel
+// SWIPE_DISTANCE game pixels (one tile) to count as a swipe, and every further tile of
+// travel is measured from where the last swipe ended, so one finger can slide around
+// and keep turning without lifting.
+#define SWIPE_DISTANCE ((float)TILE)
+
+// The finger we are following. We ignore any others, so resting a second finger on
+// the screen doesn't confuse the steering.
+static struct {
+    bool down;       // is the finger on the screen?
+    bool swiped;     // has it steered yet? If not, lifting it is a tap
+    SDL_FingerID id; // which finger, since SDL numbers every finger on the screen
+    float x, y;      // where we measure the next swipe from, in game pixels
+} touch;
+
+// Reacts to a finger touching, moving on, or leaving the screen.
+static void handle_touch(const SDL_TouchFingerEvent *f) {
+    // Only screens you touch directly. On a Mac, SDL also reports fingers on the
+    // trackpad, which would steer whenever a hand rested on it.
+    if (SDL_GetTouchDeviceType(f->touchId) != SDL_TOUCH_DEVICE_DIRECT) {
+        return;
+    }
+    // SDL gives finger positions from 0 to 1 across the window; turn them into game pixels
+    float x = f->x * WINDOW_WIDTH;
+    float y = f->y * WINDOW_HEIGHT;
+
+    if (f->type == SDL_FINGERDOWN) {
+        if (!touch.down) {
+            touch.down = true;
+            touch.swiped = false;
+            touch.id = f->fingerId;
+            touch.x = x;
+            touch.y = y;
+        }
+        return;
+    }
+    if (!touch.down || f->fingerId != touch.id) {
+        return; // a finger we aren't following
+    }
+    if (f->type == SDL_FINGERMOTION) {
+        float dx = x - touch.x;
+        float dy = y - touch.y;
+        if (dx * dx + dy * dy < SWIPE_DISTANCE * SWIPE_DISTANCE) {
+            return; // not far enough yet
+        }
+        // Whichever way the finger moved more wins: mostly sideways steers left or right
+        if (fabsf(dx) > fabsf(dy)) {
+            game_steer(dx > 0 ? DIR_RIGHT : DIR_LEFT);
+        } else {
+            game_steer(dy > 0 ? DIR_DOWN : DIR_UP);
+        }
+        touch.swiped = true;
+        touch.x = x;
+        touch.y = y;
+    } else if (f->type == SDL_FINGERUP) {
+        touch.down = false;
+        if (!touch.swiped && game.state == STATE_GAME_OVER) {
+            game_new(); // a tap plays again, like Enter
+        }
+    }
+}
+
 // One pass of the main loop, with a fixed time step. Returns false when it's time to quit.
 //
 // The display may refresh 60, 120 or 144 times per second, but the game logic must run
@@ -109,6 +173,8 @@ static bool loop_once(void) {
             quit = true;
         } else if (e.type == SDL_KEYDOWN && !e.key.repeat) { // ignore auto-repeat
             handle_keydown(e.key.keysym.scancode, &quit);
+        } else if (e.type == SDL_FINGERDOWN || e.type == SDL_FINGERMOTION || e.type == SDL_FINGERUP) {
+            handle_touch(&e.tfinger);
         }
     }
 
@@ -134,6 +200,17 @@ static bool loop_once(void) {
 // page, so Esc does nothing there.
 static void browser_frame(void) {
     loop_once();
+}
+
+// Phones have no P or M key, so the web page shows buttons that call these.
+// EMSCRIPTEN_KEEPALIVE keeps a function in the build even though no C code calls it,
+// and lets the page's JavaScript call it as Module._web_toggle_pause().
+EMSCRIPTEN_KEEPALIVE void web_toggle_pause(void) {
+    game_toggle_pause();
+}
+
+EMSCRIPTEN_KEEPALIVE void web_toggle_mute(void) {
+    sound_set_muted(!sound_is_muted());
 }
 #endif
 
