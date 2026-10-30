@@ -1,0 +1,91 @@
+<!doctype html>
+<!--
+  The page that hosts the WebAssembly build. `make web` fills in {{{ SCRIPT }}} with the
+  script that loads the game. The game draws into the <canvas>, and SDL listens for the
+  keyboard on the whole page.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pac-Man in C</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 15px/1.4 system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px 16px; box-sizing: border-box; }
+  #stage { position: relative; }
+  /* Scale the 672x840 game to fit the window, keeping its shape. SDL sets the canvas
+     size itself, so !important is needed to override it. */
+  canvas {
+    display: block;
+    height: min(calc(100vh - 80px), 840px) !important;
+    width: auto !important;
+    max-width: calc(100vw - 32px);
+    aspect-ratio: 672 / 840;
+    background: #000;
+    outline: none;
+  }
+  #start {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; background: rgba(0, 0, 0, 0.82); cursor: pointer; text-align: center;
+  }
+  #start h1 { margin: 0; color: #ff0; font-size: 34px; letter-spacing: 2px; }
+  #start .go { color: #fff; font-size: 18px; }
+  #status { color: #888; }
+  .keys { color: #888; text-align: center; }
+  kbd { border: 1px solid #555; border-radius: 4px; padding: 0 5px; color: #ccc; }
+  a { color: #8af; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+    <div id="start">
+      <h1>PAC-MAN</h1>
+      <div class="go" id="status">Loading…</div>
+    </div>
+  </div>
+  <div class="keys">
+    <kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd> or <kbd>WASD</kbd> move · <kbd>P</kbd> pause · <kbd>M</kbd> mute ·
+    <kbd>Enter</kbd> play again · written in C, compiled to WebAssembly ·
+    <a href="https://github.com/gubatron/pacman-c">source</a>
+  </div>
+<script>
+  // The game doesn't start on its own (we build with INVOKE_RUN=0): browsers only allow
+  // sound after the visitor clicks or presses a key, so we start it on the first one.
+  var start = document.getElementById("start");
+  var statusText = document.getElementById("status"); // not "status": that name is taken by window.status
+  var ready = false, started = false;
+
+  function play(event) {
+    if (!ready || started) return;
+    if (event) event.preventDefault();
+    started = true;
+    start.remove();
+    document.getElementById("canvas").focus();
+    Module.callMain([]);
+  }
+
+  var Module = {
+    canvas: document.getElementById("canvas"),
+    print: function (text) { console.log(text); },
+    printErr: function (text) { console.warn(text); },
+    onRuntimeInitialized: function () {
+      ready = true;
+      statusText.textContent = "Click or press any key to play";
+      statusText.className = "go";
+    },
+  };
+
+  start.addEventListener("click", play);
+  window.addEventListener("keydown", function (event) {
+    if (!started) play(event);
+  });
+  // Keep the arrow keys and space from scrolling the page while playing
+  window.addEventListener("keydown", function (event) {
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].indexOf(event.key) >= 0) event.preventDefault();
+  });
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>
