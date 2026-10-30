@@ -348,6 +348,37 @@ static void draw_pellets(void) {
 // Text and the whole frame
 // ---------------------------------------------------------------------------
 
+// A bar showing Pac-Man's speed, between the spare lives and the level. It fills up
+// to his top speed, and a white tick marks the arcade's full speed (100%), which the
+// pellet bonus can take him past.
+static void draw_speed_gauge(int bottom) {
+    const int label_x = 220;   // right after room for six spare lives
+    const int bar_x = 328;     // after the 100 px wide "SPEED" label and a gap
+    const int bar_w = 110;     // ends well before the cherry next to "LEVEL 10"
+    const int bar_y = bottom + 16;
+    const int bar_h = 12;
+
+    draw_text("SPEED", label_x, bottom + 12, WHITE, false);
+
+    float max_speed = player_max_speed();
+    int fill = (int)((float)bar_w * player_speed() / max_speed);
+    if (fill > bar_w) {
+        fill = bar_w;
+    }
+    set_color(YELLOW);
+    SDL_Rect filled = { bar_x, bar_y, fill, bar_h };
+    SDL_RenderFillRect(renderer, &filled);
+
+    SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
+    SDL_Rect outline = { bar_x - 1, bar_y - 1, bar_w + 2, bar_h + 2 };
+    SDL_RenderDrawRect(renderer, &outline);
+
+    int tick_x = bar_x + (int)((float)bar_w * BASE_SPEED / max_speed);
+    set_color(WHITE);
+    SDL_Rect tick = { tick_x - 1, bar_y - 3, 2, bar_h + 6 };
+    SDL_RenderFillRect(renderer, &tick);
+}
+
 static void draw_hud(void) {
     char text[64];
 
@@ -358,9 +389,16 @@ static void draw_hud(void) {
     draw_text("HIGH SCORE", WINDOW_WIDTH / 2, 2, WHITE, true);
     snprintf(text, sizeof(text), "%d", game.high_score);
     draw_text(text, WINDOW_WIDTH / 2, 24, WHITE, true);
+    if (sound_is_muted()) {
+        // Top right, right-aligned by measuring the text first
+        const char *muted = "MUTED (M)";
+        int muted_width = 0;
+        TTF_SizeText(font, muted, &muted_width, NULL);
+        draw_text(muted, WINDOW_WIDTH - TILE - muted_width, 2, (SDL_Color){ 128, 128, 128, 255 }, false);
+    }
 
-    // Spare lives at the bottom left (the life being played isn't shown), and the level
-    // at the bottom right, right-aligned by measuring the text first
+    // Spare lives at the bottom left (the life being played isn't shown), the speed
+    // gauge in the middle, and the level at the bottom right
     int bottom = HUD_HEIGHT + MAZE_ROWS * TILE;
     for (int i = 0; i < game.lives - 1 && i < 6; i++) {
         draw_pacman(2 * TILE + i * 30, bottom + TILE, 9, 60.0f, 180.0f);
@@ -371,9 +409,7 @@ static void draw_hud(void) {
     int text_x = WINDOW_WIDTH - TILE - text_width;
     draw_text(text, text_x, bottom + 12, WHITE, false);
     draw_cherry(text_x - TILE, bottom + TILE);
-    if (sound_is_muted()) {
-        draw_text("MUTED (M)", WINDOW_WIDTH / 2, bottom + 12, (SDL_Color){ 128, 128, 128, 255 }, true);
-    }
+    draw_speed_gauge(bottom);
 }
 
 void render_frame(void) {
