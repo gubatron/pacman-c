@@ -27,6 +27,11 @@
 #define PELLET_BURST 0.15f
 #define BURST_FRAMES 30 // half a second
 
+// Above TRAIL_SPEED (as a fraction of BASE_SPEED) Pac-Man leaves a faint trail. It fades
+// in over the next TRAIL_FADE, so it grows with speed instead of popping on.
+#define TRAIL_SPEED 1.10f
+#define TRAIL_FADE  0.15f
+
 // Speeds as fractions of BASE_SPEED, for each speed tier (see game_speed_tier()).
 // Pac-Man is faster while the ghosts are frightened.
 static const float NORMAL_SPEED[] = { 0.80f, 0.90f, 1.00f };
@@ -43,6 +48,10 @@ void player_reset(void) {
     p->moving = false;
     p->mouth_angle = 30.0f;
     p->mouth_opening = false;
+    for (int i = 0; i < TRAIL_LENGTH; i++) { // no trail yet: every point is where he stands
+        p->trail[i].x = p->x;
+        p->trail[i].y = p->y;
+    }
 }
 
 // Eats the pellet on the tile Pac-Man is on, if there is one.
@@ -121,6 +130,21 @@ float player_max_speed(void) {
     return BASE_SPEED * (1.00f + MAX_PELLET_BONUS + PELLET_BURST);
 }
 
+float player_trail_strength(void) {
+    float strength = (player_speed() / BASE_SPEED - TRAIL_SPEED) / TRAIL_FADE;
+    return strength < 0.0f ? 0.0f : (strength > 1.0f ? 1.0f : strength);
+}
+
+// Remembers where Pac-Man is this frame, dropping the oldest position.
+static void record_trail(void) {
+    Pacman *p = &game.pac;
+    for (int i = TRAIL_LENGTH - 1; i > 0; i--) {
+        p->trail[i] = p->trail[i - 1]; // C lesson: structs copy with a plain =
+    }
+    p->trail[0].x = p->x;
+    p->trail[0].y = p->y;
+}
+
 void player_update(void) {
     // The burst fades evenly, reaching 0 BURST_FRAMES after the last pellet
     game.pac.burst -= PELLET_BURST / BURST_FRAMES;
@@ -138,4 +162,5 @@ void player_update(void) {
     if (game.pac.moving) {
         animate_mouth(); // the mouth stops when Pac-Man does
     }
+    record_trail();
 }
