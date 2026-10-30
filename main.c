@@ -1,6 +1,7 @@
 // main.c
 // Pac-Man in C with SDL2: the classic maze, pellets and power pellets, four ghosts
 // with their chase/scatter personalities, fruit, lives, levels, sound and a saved high score.
+// Controls: arrows or WASD to move, P to pause, M to mute, Enter to play again, Esc to quit.
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <limits.h>
@@ -1261,7 +1262,11 @@ static void handle_keydown(SDL_Scancode key, bool *quit) {
     case SDL_SCANCODE_P:
         if (game.state == STATE_PLAYING) {
             game.paused = !game.paused;
+            set_audio_flags(audio.muted, game.paused);
         }
+        break;
+    case SDL_SCANCODE_M:
+        set_audio_flags(!audio.muted, game.paused);
         break;
     case SDL_SCANCODE_RETURN:
     case SDL_SCANCODE_SPACE:
@@ -1503,6 +1508,9 @@ static void draw_hud(void) {
     int text_x = WINDOW_WIDTH - TILE - text_width;
     draw_text(text, text_x, bottom + 12, white, false);
     draw_cherry(text_x - TILE, bottom + TILE);
+    if (audio.muted) {
+        draw_text("MUTED (M)", WINDOW_WIDTH / 2, bottom + 12, (SDL_Color){ 128, 128, 128, 255 }, true);
+    }
 }
 
 static void render(void) {
