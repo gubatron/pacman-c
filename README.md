@@ -56,6 +56,8 @@ The game loads `font.ttf` from the folder it runs in. The high score is saved in
 
 Play it online at **https://gubatron.com/pacman-c/**.
 
+![pacman-c running in a web browser](screenshot-web.png)
+
 The same C code compiles to WebAssembly with [Emscripten](https://emscripten.org). Install it first:
 
 ```sh
