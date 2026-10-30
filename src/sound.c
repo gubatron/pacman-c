@@ -152,9 +152,9 @@ static float sound_sample(Voice *v, double t) {
         }
         return out;
     }
-    case SOUND_WAKA: { // "wa" sweeps down, "ka" sweeps back up
+    case SOUND_WAKA: { // "wa" sweeps down from 1200 Hz to 500 Hz, "ka" sweeps back up
         double x = t / 0.11;
-        double freq = v->half == 0 ? 600.0 - 350.0 * x : 250.0 + 350.0 * x;
+        double freq = v->half == 0 ? 1200.0 - 700.0 * x : 500.0 + 700.0 * x;
         return 0.22f * tone(v, freq);
     }
     case SOUND_GHOST_EATEN: // a fast rising sweep while the game freezes
