@@ -12,6 +12,7 @@ typedef struct {
     Dir dir;      // the way he is going (or facing, while stopped against a wall)
     Dir next_dir; // the last way the player pressed, taken at the first tile center where it's open
     float speed_acc; // fractions of a pixel saved up between frames; see take_steps() in game.h
+    float burst;     // extra speed from the last pellet, as a fraction of BASE_SPEED; fades to 0
     bool moving;     // false while stopped against a wall
     float mouth_angle;  // how wide the mouth is open, in degrees
     bool mouth_opening; // whether the mouth is opening or closing
